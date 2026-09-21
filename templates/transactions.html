@@ -1,0 +1,441 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<!-- Print-Only Header Banner for Executive PDF Export -->
+<div class="print-only-header">
+    <div class="pdf-header-wrapper">
+        <div class="pdf-brand-section">
+            <div class="pdf-logo-badge">PF</div>
+            <div>
+                <h1 class="pdf-title">Personal Finance</h1>
+                <p class="pdf-subtitle">Laporan Keuangan Keseluruhan</p>
+            </div>
+        </div>
+        <div class="pdf-meta-box">
+            <p style="margin: 0;"><strong>Periode Laporan:</strong> <span id="printPeriodFilter">Semua Tanggal</span></p>
+            <p style="margin: 3px 0 0;"><strong>Tanggal Cetak:</strong> <span id="printTimestamp"></span></p>
+        </div>
+    </div>
+</div>
+
+<!-- Header Section -->
+<div class="d-flex justify-content-between align-items-sm-center page-header-responsive mb-4">
+    <div>
+        <h2 class="mb-1">Transactions</h2>
+        <p class="text-secondary-custom mb-0" style="font-size: 14px;">
+            Kelola dan filter seluruh transaksi pemasukan dan pengeluaran Anda.
+        </p>
+    </div>
+
+    <div class="d-flex gap-2 align-items-center btn-genesis-group">
+        <button type="button" onclick="exportToPDF()" class="btn-genesis btn-genesis-secondary btn-genesis-md">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Export PDF
+        </button>
+
+        <a href="{{ url_for('add_transaction_page') }}" class="btn-genesis btn-genesis-primary btn-genesis-md">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            + Add Transaction
+        </a>
+    </div>
+</div>
+
+<!-- Stat Cards Grid (Real-time Recalculated on Filter) -->
+<div class="row g-3 mb-4">
+
+    <!-- Balance Card -->
+    <div class="col-md-4 col-sm-6">
+        <div class="genesis-card genesis-card-hover stat-card">
+            <div class="genesis-card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="stat-label">Total Balance (Sisa)</span>
+                    <div class="stat-icon stat-icon-primary">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+                            <line x1="2" y1="10" x2="22" y2="10"></line>
+                        </svg>
+                    </div>
+                </div>
+                <div class="stat-value font-mono" id="statBalanceValue">
+                    Rp {{ "{:,.0f}".format(balance) }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Total Income Card -->
+    <div class="col-md-4 col-sm-6">
+        <div class="genesis-card genesis-card-hover stat-card">
+            <div class="genesis-card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="stat-label">Total Pemasukan</span>
+                    <div class="stat-icon stat-icon-success">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="19" x2="12" y2="5"></line>
+                            <polyline points="5 12 12 5 19 12"></polyline>
+                        </svg>
+                    </div>
+                </div>
+                <div class="stat-value success font-mono" id="statIncomeValue">
+                    Rp {{ "{:,.0f}".format(total_income) }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Total Expenses Card -->
+    <div class="col-md-4 col-12">
+        <div class="genesis-card genesis-card-hover stat-card">
+            <div class="genesis-card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="stat-label">Total Pengeluaran</span>
+                    <div class="stat-icon stat-icon-danger">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <polyline points="19 12 12 19 5 12"></polyline>
+                        </svg>
+                    </div>
+                </div>
+                <div class="stat-value danger font-mono" id="statExpenseValue">
+                    Rp {{ "{:,.0f}".format(total_expense) }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Table / Card List Container -->
+<div class="genesis-card">
+    
+    <!-- Instant Quick Filter & Custom Date Range Bar -->
+    <div class="trx-filter-bar">
+        <!-- Search & Type Filter Row -->
+        <div class="d-flex align-items-center gap-2 flex-wrap w-100 mb-2">
+            <div class="trx-search-wrapper">
+                <svg class="trx-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input type="text" id="trxSearch" class="form-control-genesis" placeholder="Cari transaksi atau kategori...">
+            </div>
+
+            <div class="trx-filter-chips">
+                <button type="button" class="trx-filter-chip active" data-type="all">Semua</button>
+                <button type="button" class="trx-filter-chip" data-type="Pemasukan">Pemasukan</button>
+                <button type="button" class="trx-filter-chip" data-type="Pengeluaran">Pengeluaran</button>
+            </div>
+        </div>
+
+        <!-- Custom Date Range Filter Row -->
+        <div class="d-flex align-items-center gap-3 flex-wrap w-100 pt-2 border-top">
+            <div class="d-flex align-items-center gap-2">
+                <span style="font-size: 13px; font-weight: 600; color: var(--color-text-secondary); white-space: nowrap;">Dari:</span>
+                <input type="date" id="startDateFilter" class="form-control-genesis" style="height: 38px; padding: 4px 10px; font-size: 13px; width: auto;">
+            </div>
+
+            <div class="d-flex align-items-center gap-2">
+                <span style="font-size: 13px; font-weight: 600; color: var(--color-text-secondary); white-space: nowrap;">Sampai:</span>
+                <input type="date" id="endDateFilter" class="form-control-genesis" style="height: 38px; padding: 4px 10px; font-size: 13px; width: auto;">
+            </div>
+
+            <button type="button" id="resetDateFilter" class="btn-genesis btn-genesis-ghost btn-genesis-sm ms-auto">
+                Reset Filter Tanggal
+            </button>
+        </div>
+    </div>
+
+    <!-- Desktop Table View (min-width: 768px & PDF Print) -->
+    <div class="genesis-table-wrapper desktop-table-view">
+        <table class="genesis-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Category</th>
+                    <th>Amount</th>
+                    <th>Description</th>
+                    <th style="text-align: right;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for transaction in transactions %}
+                <tr data-type="{{ transaction['Type'] }}" data-date="{{ transaction['Date'] }}" data-amount="{{ transaction['Amount'] }}">
+                    <td class="font-mono" style="font-weight: 500; font-size: 13px; color: var(--color-text-secondary);">
+                        {{ transaction["ID"] }}
+                    </td>
+
+                    <td style="white-space: nowrap;">
+                        {{ transaction["Date"]|pretty_date }}
+                    </td>
+
+                    <td>
+                        {% if transaction["Type"] == "Pemasukan" %}
+                            <span class="chip chip-success">
+                                Pemasukan
+                            </span>
+                        {% else %}
+                            <span class="chip chip-danger">
+                                Pengeluaran
+                            </span>
+                        {% endif %}
+                    </td>
+
+                    <td style="font-weight: 500;">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="cat-icon-badge" style="width: 26px; height: 26px; font-size: 14px;">
+                                {{ transaction["Category"]|category_icon }}
+                            </span>
+                            <span>{{ transaction["Category"] }}</span>
+                        </div>
+                    </td>
+
+                    <td class="font-mono" style="font-weight: 600; white-space: nowrap;">
+                        {% if transaction["Type"] == "Pemasukan" %}
+                            <span style="color: var(--color-success-text);">
+                                + Rp {{ "{:,.0f}".format(transaction["Amount"]|float) }}
+                            </span>
+                        {% else %}
+                            <span style="color: var(--color-error-text);">
+                                - Rp {{ "{:,.0f}".format(transaction["Amount"]|float) }}
+                            </span>
+                        {% endif %}
+                    </td>
+
+                    <td style="color: var(--color-text-secondary); max-width: 240px;">
+                        {{ transaction["Description"] if transaction["Description"] else '-' }}
+                    </td>
+
+                    <td style="text-align: right; white-space: nowrap;">
+                        <div class="d-inline-flex gap-2">
+                            <a href="{{ url_for('edit_transaction', row_number=loop.index) }}" class="btn-genesis btn-genesis-secondary btn-genesis-sm">
+                                Edit
+                            </a>
+
+                            <a href="{{ url_for('delete_transaction_page', row_number=loop.index) }}" 
+                               class="btn-genesis btn-genesis-destructive btn-genesis-sm"
+                               onclick="return confirm('Hapus transaksi ini?')">
+                                Delete
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="text-center py-5">
+                        <p class="text-secondary-custom mb-0">Belum ada transaksi tercatat.</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Mobile Card List View (max-width: 767.98px) -->
+    <div class="mobile-transactions-list">
+        {% for transaction in transactions %}
+            <div class="mobile-trx-card" data-type="{{ transaction['Type'] }}" data-date="{{ transaction['Date'] }}" data-amount="{{ transaction['Amount'] }}">
+                <div class="mobile-trx-header">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="cat-icon-badge">
+                            {{ transaction["Category"]|category_icon }}
+                        </span>
+                        <div>
+                            <span class="font-mono" style="font-size: 11px; color: var(--color-text-secondary); display: block;">
+                                {{ transaction["ID"] }}
+                            </span>
+                            <strong style="font-family: var(--font-display); font-size: 15px;">
+                                {{ transaction["Category"] }}
+                            </strong>
+                        </div>
+                    </div>
+
+                    {% if transaction["Type"] == "Pemasukan" %}
+                        <span class="chip chip-success">Pemasukan</span>
+                    {% else %}
+                        <span class="chip chip-danger">Pengeluaran</span>
+                    {% endif %}
+                </div>
+
+                <div class="mobile-trx-meta">
+                    <span>{{ transaction["Date"]|pretty_date }}</span>
+                    <span class="font-mono" style="font-weight: 700; font-size: 15px; color: {% if transaction['Type'] == 'Pemasukan' %}var(--color-success-text){% else %}var(--color-error-text){% endif %};">
+                        {% if transaction["Type"] == "Pemasukan" %}+{% else %}-{% endif %} Rp {{ "{:,.0f}".format(transaction["Amount"]|float) }}
+                    </span>
+                </div>
+
+                {% if transaction["Description"] %}
+                    <p style="font-size: 13px; color: var(--color-text-secondary); margin: 0;">
+                        {{ transaction["Description"] }}
+                    </p>
+                {% endif %}
+
+                <div class="mobile-trx-actions">
+                    <a href="{{ url_for('edit_transaction', row_number=loop.index) }}" class="btn-genesis btn-genesis-secondary btn-genesis-sm">
+                        Edit
+                    </a>
+
+                    <a href="{{ url_for('delete_transaction_page', row_number=loop.index) }}" 
+                       class="btn-genesis btn-genesis-destructive btn-genesis-sm"
+                       onclick="return confirm('Hapus transaksi ini?')">
+                        Delete
+                    </a>
+                </div>
+            </div>
+        {% else %}
+            <div class="py-5 text-center">
+                <p class="text-secondary-custom mb-0">Belum ada transaksi tercatat.</p>
+            </div>
+        {% endfor %}
+    </div>
+
+</div>
+
+<!-- Instant Filter, Custom Date Range, & PDF Export Script -->
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const filterSearch = document.getElementById("trxSearch");
+    const startDateInput = document.getElementById("startDateFilter");
+    const endDateInput = document.getElementById("endDateFilter");
+    const resetButton = document.getElementById("resetDateFilter");
+    const filterChips = document.querySelectorAll(".trx-filter-chip");
+
+    const statBalanceEl = document.getElementById("statBalanceValue");
+    const statIncomeEl = document.getElementById("statIncomeValue");
+    const statExpenseEl = document.getElementById("statExpenseValue");
+
+    let currentTypeFilter = "all";
+
+    function formatRupiah(num) {
+        return "Rp " + new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(num);
+    }
+
+    filterChips.forEach(chip => {
+        chip.addEventListener("click", () => {
+            filterChips.forEach(c => c.classList.remove("active"));
+            chip.classList.add("active");
+            currentTypeFilter = chip.dataset.type;
+            applyFilters();
+        });
+    });
+
+    if (filterSearch) filterSearch.addEventListener("input", applyFilters);
+    if (startDateInput) startDateInput.addEventListener("change", applyFilters);
+    if (endDateInput) endDateInput.addEventListener("change", applyFilters);
+
+    if (resetButton) {
+        resetButton.addEventListener("click", () => {
+            if (startDateInput) startDateInput.value = "";
+            if (endDateInput) endDateInput.value = "";
+            applyFilters();
+        });
+    }
+
+    function applyFilters() {
+        const query = (filterSearch ? filterSearch.value : "").toLowerCase().trim();
+        const startDate = startDateInput ? startDateInput.value : "";
+        const endDate = endDateInput ? endDateInput.value : "";
+
+        let totalIncome = 0;
+        let totalExpense = 0;
+
+        // Desktop Table Rows
+        document.querySelectorAll(".genesis-table tbody tr").forEach(row => {
+            if (!row.dataset.type) return;
+            const text = row.innerText.toLowerCase();
+            const rowType = row.dataset.type;
+            const rowDate = row.dataset.date || "";
+            const rowAmount = parseFloat(row.dataset.amount || 0);
+
+            const matchesType = (currentTypeFilter === "all" || rowType === currentTypeFilter);
+            const matchesStart = (!startDate || rowDate >= startDate);
+            const matchesEnd = (!endDate || rowDate <= endDate);
+            const matchesSearch = (!query || text.includes(query));
+
+            const isVisible = matchesType && matchesStart && matchesEnd && matchesSearch;
+            row.style.display = isVisible ? "" : "none";
+
+            if (isVisible) {
+                if (rowType === "Pemasukan") totalIncome += rowAmount;
+                if (rowType === "Pengeluaran") totalExpense += rowAmount;
+            }
+        });
+
+        // Mobile Cards
+        document.querySelectorAll(".mobile-trx-card").forEach(card => {
+            if (!card.dataset.type) return;
+            const text = card.innerText.toLowerCase();
+            const cardType = card.dataset.type;
+            const cardDate = card.dataset.date || "";
+
+            const matchesType = (currentTypeFilter === "all" || cardType === currentTypeFilter);
+            const matchesStart = (!startDate || cardDate >= startDate);
+            const matchesEnd = (!endDate || cardDate <= endDate);
+            const matchesSearch = (!query || text.includes(query));
+
+            card.style.display = (matchesType && matchesStart && matchesEnd && matchesSearch) ? "" : "none";
+        });
+
+        // Recalculate and update financial stat summary cards
+        const totalBalance = totalIncome - totalExpense;
+        if (statBalanceEl) statBalanceEl.textContent = formatRupiah(totalBalance);
+        if (statIncomeEl) statIncomeEl.textContent = formatRupiah(totalIncome);
+        if (statExpenseEl) statExpenseEl.textContent = formatRupiah(totalExpense);
+    }
+});
+
+function formatIndonesianDate(ymd) {
+    if (!ymd) return "";
+    const parts = ymd.split("-");
+    if (parts.length !== 3) return ymd;
+    const [y, m, d] = parts;
+    const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+    return `${parseInt(d, 10)} ${months[parseInt(m, 10) - 1]} ${y}`;
+}
+
+function exportToPDF() {
+    const timestampSpan = document.getElementById("printTimestamp");
+    const periodSpan = document.getElementById("printPeriodFilter");
+    const startDateInput = document.getElementById("startDateFilter");
+    const endDateInput = document.getElementById("endDateFilter");
+
+    const startDate = startDateInput ? startDateInput.value : "";
+    const endDate = endDateInput ? endDateInput.value : "";
+
+    if (timestampSpan) {
+        const now = new Date();
+        timestampSpan.textContent = now.toLocaleDateString("id-ID", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit"
+        });
+    }
+
+    if (periodSpan) {
+        if (startDate && endDate) {
+            periodSpan.textContent = `${formatIndonesianDate(startDate)} - ${formatIndonesianDate(endDate)}`;
+        } else if (startDate) {
+            periodSpan.textContent = `Mulai ${formatIndonesianDate(startDate)}`;
+        } else if (endDate) {
+            periodSpan.textContent = `Sampai ${formatIndonesianDate(endDate)}`;
+        } else {
+            periodSpan.textContent = "Semua Tanggal (Keseluruhan)";
+        }
+    }
+
+    window.print();
+}
+</script>
+
+{% endblock %}

@@ -1,0 +1,17 @@
+# Environment variables & Credentials
+.env
+credentials/*.json
+*.pem
+
+# Python Pycache & Virtual Environments
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+ENV/
+
+# OS metadata
+.DS_Store
+Thumbs.db
