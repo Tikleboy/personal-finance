@@ -1,16 +1,21 @@
 import os
 from flask import Flask, render_template, request, redirect, url_for
 from datetime import datetime
-from services.google_sheets import (
+from services.database import (
+    init_db,
     get_transactions,
     add_transaction,
     update_transaction,
     delete_transaction,
-    get_categories
+    get_categories,
+    get_next_transaction_id
 )
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "personal-finance-secret-key-2026")
+
+# Initialize SQLite database schema and seed default categories & sample data
+init_db()
 
 # Indonesian Month Abbreviations
 MONTHS_ID = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
@@ -191,9 +196,7 @@ def add_transaction_page():
 
     if request.method == "POST":
 
-        transactions = helper_process_transactions(get_transactions())
-
-        transaction_id = f"TRX{len(transactions) + 1:03d}"
+        transaction_id = get_next_transaction_id()
 
         transaction = {
             "id": transaction_id,
@@ -201,7 +204,7 @@ def add_transaction_page():
             "type": request.form["type"],
             "category": request.form["category"],
             "amount": request.form["amount"],
-            "description": request.form["description"]
+            "description": request.form.get("description", "")
         }
 
         add_transaction(transaction)
@@ -218,29 +221,30 @@ def add_transaction_page():
 # EDIT TRANSACTION
 # =========================
 
-@app.route("/transactions/edit/<int:row_number>", methods=["GET", "POST"])
-def edit_transaction(row_number):
+@app.route("/transactions/edit/<transaction_id>", methods=["GET", "POST"])
+def edit_transaction(transaction_id):
 
     transactions = helper_process_transactions(get_transactions())
     categories = helper_process_categories(get_categories())
 
-    # row_number dimulai dari 1 untuk transaksi pertama
-    transaction = transactions[row_number - 1]
+    # Search transaction by ID
+    transaction = next((t for t in transactions if t["ID"] == transaction_id), None)
+    if not transaction:
+        return redirect(url_for("transactions"))
 
     if request.method == "POST":
 
         updated_transaction = {
-            "id": transaction["ID"],
+            "id": transaction_id,
             "date": request.form["date"],
             "type": request.form["type"],
             "category": request.form["category"],
             "amount": request.form["amount"],
-            "description": request.form["description"]
+            "description": request.form.get("description", "")
         }
 
-        # +1 karena baris pertama adalah header
         update_transaction(
-            row_number + 1,
+            transaction_id,
             updated_transaction
         )
 
@@ -257,16 +261,16 @@ def edit_transaction(row_number):
 # DELETE TRANSACTION
 # =========================
 
-@app.route("/transactions/delete/<int:row_number>")
-def delete_transaction_page(row_number):
+@app.route("/transactions/delete/<transaction_id>")
+def delete_transaction_page(transaction_id):
 
-    # +1 karena baris pertama adalah header
-    delete_transaction(row_number + 1)
+    delete_transaction(transaction_id)
 
     return redirect(url_for("transactions"))
 
 
 if __name__ == "__main__":
+    host = os.environ.get("HOST", "127.0.0.1")
     port = int(os.environ.get("PORT", 5000))
     debug_mode = os.environ.get("FLASK_DEBUG", "False").lower() in ["true", "1"]
-    app.run(host="0.0.0.0", port=port, debug=debug_mode)
+    app.run(host=host, port=port, debug=debug_mode)

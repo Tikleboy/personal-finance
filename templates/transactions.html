@@ -217,11 +217,11 @@
 
                     <td style="text-align: right; white-space: nowrap;">
                         <div class="d-inline-flex gap-2">
-                            <a href="{{ url_for('edit_transaction', row_number=loop.index) }}" class="btn-genesis btn-genesis-secondary btn-genesis-sm">
+                            <a href="{{ url_for('edit_transaction', transaction_id=transaction['ID']) }}" class="btn-genesis btn-genesis-secondary btn-genesis-sm">
                                 Edit
                             </a>
 
-                            <a href="{{ url_for('delete_transaction_page', row_number=loop.index) }}" 
+                            <a href="{{ url_for('delete_transaction_page', transaction_id=transaction['ID']) }}" 
                                class="btn-genesis btn-genesis-destructive btn-genesis-sm"
                                onclick="return confirm('Hapus transaksi ini?')">
                                 Delete
@@ -280,11 +280,11 @@
                 {% endif %}
 
                 <div class="mobile-trx-actions">
-                    <a href="{{ url_for('edit_transaction', row_number=loop.index) }}" class="btn-genesis btn-genesis-secondary btn-genesis-sm">
+                    <a href="{{ url_for('edit_transaction', transaction_id=transaction['ID']) }}" class="btn-genesis btn-genesis-secondary btn-genesis-sm">
                         Edit
                     </a>
 
-                    <a href="{{ url_for('delete_transaction_page', row_number=loop.index) }}" 
+                    <a href="{{ url_for('delete_transaction_page', transaction_id=transaction['ID']) }}" 
                        class="btn-genesis btn-genesis-destructive btn-genesis-sm"
                        onclick="return confirm('Hapus transaksi ini?')">
                         Delete
